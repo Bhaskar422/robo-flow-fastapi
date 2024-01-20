@@ -84,11 +84,8 @@ def predict_on_patch(patch):
 
 # Function to draw predictions on the final image and save as XML
 def draw_predictions_on_image(image_path):
-
-    # Get patches from the input image
+    start_time = time.time()
     patches = crop_image_into_patches(image_path)
-
-    # Create a new image to draw predictions on
     final_image = image_path
     draw = ImageDraw.Draw(final_image)
 
@@ -109,6 +106,12 @@ def draw_predictions_on_image(image_path):
                 # Draw a dot at the center
                 draw.ellipse([(center_x - 2, center_y - 2), (center_x + 2, center_y + 2)], fill='red')
                 total_predictions += 1  # Increment total predictions
+    
+    end_time = time.time()
+
+    # Print total time taken
+    total_time_taken = end_time - start_time
+    print(f"Total time taken: {total_time_taken:.2f} seconds")
 
 
     # Add text to the top left corner with total count
