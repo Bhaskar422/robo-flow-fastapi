@@ -12,10 +12,15 @@ import os
 import time
 # import asyncio
 import concurrent.futures
-
+from datetime import datetime, timezone, timedelta
+import cv2
 
 router = APIRouter()
 load_dotenv()
+IST = timezone(timedelta(hours=5, minutes=30))
+UPLOAD_FOLDER = 'images'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 @router.get('/healthcheck')
 async def healthcheck():
@@ -26,11 +31,20 @@ async def healthcheck():
 async def process_and_predict(file: UploadFile = File(...)):
     try:
         image = Image.open(BytesIO(await file.read()))
-        final_image, total_count = draw_predictions_on_image(image)
-        # final_image, total_count = await draw_parallel_predictions_on_image(image, "robo_flow_image.png")
+        
+        current_time_in_ist = datetime.now(IST)
+
+        filename = f"{current_time_in_ist}_captured.jpeg"
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        image.save(file_path, format="JPEG")
+
+        
+        final_image, total_count = draw_predictions_on_image(image, current_time_in_ist)
+
         img_byte_array = BytesIO()
-        final_image.save(img_byte_array, format="PNG")
-        return Response(content=img_byte_array.getvalue(), headers={"detections": str(total_count), 'access-control-expose-headers': 'detections'}, media_type="image/png")
+        final_image.save(img_byte_array, format="JPEG")
+
+        return Response(content=img_byte_array.getvalue(), headers={"detections": str(total_count), 'access-control-expose-headers': 'detections'}, media_type="image/jpeg")
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error processing image: {str(e)}")
@@ -70,7 +84,7 @@ def predict_on_patch(patch):
     box, patch_img = patch
 
     # Save the patch as a temporary image file
-    temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+    temp_file = tempfile.NamedTemporaryFile(suffix='.jpeg', delete=False)
     patch_img.save(temp_file.name)
     temp_file.close()
 
@@ -83,7 +97,7 @@ def predict_on_patch(patch):
     return box, prediction.get('predictions', [])
 
 # Function to draw predictions on the final image and save as XML
-def draw_predictions_on_image(image_path):
+def draw_predictions_on_image(image_path, current_time_in_ist):
     start_time = time.time()
     patches = crop_image_into_patches(image_path)
     final_image = image_path
@@ -119,6 +133,9 @@ def draw_predictions_on_image(image_path):
     # font_size = 250
     # font_color = (255, 0, 0)
     # draw.text((10, 10), text, font=None, fill=font_color)
+    filename = f"{current_time_in_ist}_predicted_{total_predictions}.jpeg"
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    final_image.save(file_path, format='JPEG')
 
 
     return final_image, total_predictions
